@@ -2,7 +2,8 @@
 ## Title: PleebDirect
 ## Notes: Standalone Smart Misdirection targeting for Hunters.
 ## Author: Pleeb
-## Version: 1.1
+## Version: @project-version@
+## X-Curse-Project-ID: 1677525
 ## Category-enUS: PleebUI
 
 ## SavedVariablesPerCharacter: PleebDirectDB
