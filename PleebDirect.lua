@@ -36,8 +36,23 @@ local table_concat = _G.table.concat
 local table_insert = _G.table.insert
 
 local MISDIRECTION_SPELL_ID = 34477
+local TRICKS_OF_THE_TRADE_SPELL_ID = 57934
 local SMART_MISDIRECT_BINDING =
   "CLICK PleebDirect_SmartMisdirect:LeftButton"
+
+local DIRECT_SPELLS = {
+  HUNTER = {
+    id = MISDIRECTION_SPELL_ID,
+    name = "Misdirection",
+    shortName = "MD",
+    allowPet = true,
+  },
+  ROGUE = {
+    id = TRICKS_OF_THE_TRADE_SPELL_ID,
+    name = "Tricks of the Trade",
+    shortName = "Tricks",
+  },
+}
 
 local PANEL_BACKDROP = {
   bgFile = "Interface\\Buttons\\WHITE8X8",
@@ -72,25 +87,26 @@ local SmartMisdirectSelector
 local SmartMisdirectStatusFrame
 local SmartMisdirectStatusLabel
 local SmartMisdirectStatusName
-local MisdirectionKnown = false
+local DirectSpell
+local DirectSpellKnown = false
 local SpellStateDirty = true
 local RefreshSmartMisdirectSelector
 
 _G.BINDING_HEADER_PLEEBDIRECT = "PleebDirect"
 _G["BINDING_NAME_CLICK PleebDirect_SmartMisdirect:LeftButton"] =
-  "Smart Misdirection"
+  "Smart Misdirection / Tricks"
 
-local function IsHunter()
+local function GetDirectSpell()
   local _, class = UnitClass("player")
-  return canaccessvalue(class) and class == "HUNTER"
+  if not canaccessvalue(class) then
+    return nil
+  end
+
+  return DIRECT_SPELLS[class]
 end
 
 local function IsAccessibleTrue(value)
   return canaccessvalue(value) and value == true
-end
-
-local function InitializeDB()
-  _G.PleebDirectDB = _G.PleebDirectDB or {}
 end
 
 local function RefreshKnownSpell()
@@ -99,16 +115,17 @@ local function RefreshKnownSpell()
     return false
   end
 
+  DirectSpell = GetDirectSpell()
   local known = false
-  if IsHunter() then
+  if DirectSpell then
     known = C_SpellBook.IsSpellKnown(
-      MISDIRECTION_SPELL_ID,
+      DirectSpell.id,
       Enum.SpellBookSpellBank.Player
     ) == true
   end
 
-  local changed = MisdirectionKnown ~= known
-  MisdirectionKnown = known
+  local changed = DirectSpellKnown ~= known
+  DirectSpellKnown = known
   SpellStateDirty = false
   return changed
 end
@@ -207,7 +224,9 @@ local function ResolveSmartMisdirectUnit()
     end
   end
 
-  if IsAvailableSmartMisdirectUnit("pet") then
+  if DirectSpell.allowPet
+    and IsAvailableSmartMisdirectUnit("pet")
+  then
     return "pet", "PET"
   end
 
@@ -222,8 +241,6 @@ local function ClearSmartMisdirectResolution()
 end
 
 local function CacheSmartMisdirectResolution(unit, source)
-  ClearSmartMisdirectResolution()
-
   local name = UnitName(unit)
   if not canaccessvalue(name) then
     name = nil
@@ -291,7 +308,7 @@ local function DisableSmartMisdirection()
 end
 
 local function RefreshSmartMisdirection()
-  if not IsHunter() or MisdirectionKnown ~= true then
+  if not DirectSpell or DirectSpellKnown ~= true then
     DisableSmartMisdirection()
     return
   end
@@ -324,7 +341,7 @@ local function RefreshSmartMisdirection()
   end
 
   button:SetAttribute("type", "spell")
-  button:SetAttribute("spell", MISDIRECTION_SPELL_ID)
+  button:SetAttribute("spell", DirectSpell.id)
   button:SetAttribute("unit", unit)
   CacheSmartMisdirectResolution(unit, source)
 end
@@ -440,10 +457,6 @@ local function GetSmartMisdirectBindingText()
   return table_concat(displayKeys, ", ")
 end
 
-local function GetBindingActionName(bindingAction)
-  return _G["BINDING_NAME_" .. bindingAction] or bindingAction
-end
-
 local function NormalizeSmartMisdirectBindingKey(key)
   if not canaccessvalue(key)
     or key == "UNKNOWN"
@@ -479,9 +492,6 @@ end
 
 local function RefreshSmartMisdirectBindingControl(frame)
   local button = frame.bindingButton
-  if not button then
-    return
-  end
 
   if button.captureActive == true then
     SetBackdrop(button, COLORS.selected, COLORS.accent)
@@ -521,9 +531,6 @@ end
 
 local function StopSmartMisdirectBindingCapture(frame)
   local button = frame.bindingButton
-  if not button then
-    return
-  end
 
   button.captureActive = false
   button.pendingKey = nil
@@ -579,7 +586,8 @@ local function SetSmartMisdirectBinding(frame, key)
   then
     if button.pendingKey ~= key then
       button.pendingKey = key
-      button.pendingActionName = GetBindingActionName(existingAction)
+      button.pendingActionName =
+        _G["BINDING_NAME_" .. existingAction] or existingAction
       RefreshSmartMisdirectBindingControl(frame)
       return
     end
@@ -720,7 +728,7 @@ local function EnsureSmartMisdirectSelector()
     "GameFontHighlightLarge"
   )
   frame.title:SetPoint("LEFT", header, "LEFT", 10, 0)
-  frame.title:SetText("Smart Misdirection")
+  frame.title:SetText("Smart " .. DirectSpell.name)
 
   frame.close = CreateFrame("Button", nil, header, "UIPanelCloseButton")
   frame.close:SetPoint("RIGHT", header, "RIGHT", -2, 0)
@@ -922,7 +930,9 @@ RefreshSmartMisdirectSelector = function()
   else
     frame.activeName:SetText("None")
     frame.activeName:SetTextColor(1, 0.20, 0.20, 1)
-    frame.sourceText:SetText("No usable Smart Misdirection target")
+    frame.sourceText:SetText(
+      "No usable Smart " .. DirectSpell.name .. " target"
+    )
   end
 
   local units = GetSmartMisdirectSelectorUnits()
@@ -990,7 +1000,7 @@ local function RefreshSmartMisdirectSelectorIfShown()
 end
 
 local function ToggleSmartMisdirectSelector()
-  if not IsHunter() or InCombatLockdown() then
+  if not GetDirectSpell() or InCombatLockdown() then
     return
   end
 
@@ -1055,13 +1065,17 @@ local function HideSmartMisdirectReadyCheckStatus()
 end
 
 local function ShowSmartMisdirectReadyCheckStatus()
+  if DirectSpellKnown ~= true then
+    HideSmartMisdirectReadyCheckStatus()
+    return
+  end
+
   local frame = EnsureSmartMisdirectStatusFrame()
 
   SmartMisdirectStatusLabel:ClearAllPoints()
   SmartMisdirectStatusName:ClearAllPoints()
 
-  if MisdirectionKnown == true
-    and SmartMisdirectResolvedUnit
+  if SmartMisdirectResolvedUnit
     and SmartMisdirectResolvedName
   then
     SmartMisdirectStatusLabel:SetPoint(
@@ -1071,7 +1085,7 @@ local function ShowSmartMisdirectReadyCheckStatus()
       -3,
       0
     )
-    SmartMisdirectStatusLabel:SetText("MD Target:")
+    SmartMisdirectStatusLabel:SetText(DirectSpell.shortName .. " Target:")
     SmartMisdirectStatusLabel:SetTextColor(0.20, 1, 0.20, 1)
 
     SmartMisdirectStatusName:SetPoint(
@@ -1090,7 +1104,9 @@ local function ShowSmartMisdirectReadyCheckStatus()
     SmartMisdirectStatusName:Show()
   else
     SmartMisdirectStatusLabel:SetPoint("CENTER", frame, "CENTER", 0, 0)
-    SmartMisdirectStatusLabel:SetText("NO MD TARGET")
+    SmartMisdirectStatusLabel:SetText(
+      "NO " .. string_upper(DirectSpell.shortName) .. " TARGET"
+    )
     SmartMisdirectStatusLabel:SetTextColor(1, 0.15, 0.15, 1)
     SmartMisdirectStatusName:SetText("")
     SmartMisdirectStatusName:Hide()
@@ -1099,7 +1115,7 @@ local function ShowSmartMisdirectReadyCheckStatus()
   frame:Show()
 end
 
-local function RegisterHunterEvents(frame)
+local function RegisterDirectEvents(frame)
   frame:RegisterEvent("GROUP_ROSTER_UPDATE")
   frame:RegisterEvent("PLAYER_ENTERING_WORLD")
   frame:RegisterEvent("PLAYER_REGEN_DISABLED")
@@ -1115,7 +1131,7 @@ local function RegisterHunterEvents(frame)
   frame:RegisterEvent("UPDATE_BINDINGS")
 end
 
-local function HandleHunterEvent(event, unit)
+local function HandleDirectEvent(event, unit)
   if event == "UPDATE_BINDINGS" then
     RefreshSmartMisdirectSelectorIfShown()
     return
@@ -1190,19 +1206,19 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:SetScript("OnEvent", function(self, event, unit)
   if event == "PLAYER_LOGIN" then
     self:UnregisterEvent("PLAYER_LOGIN")
-    InitializeDB()
+    _G.PleebDirectDB = _G.PleebDirectDB or {}
 
-    if not IsHunter() then
+    if not GetDirectSpell() then
       return
     end
 
-    RegisterHunterEvents(self)
+    RegisterDirectEvents(self)
     RefreshKnownSpell()
     RefreshSmartMisdirection()
     return
   end
 
-  HandleHunterEvent(event, unit)
+  HandleDirectEvent(event, unit)
 end)
 
 _G.SLASH_PLEEBDIRECT1 = "/pd"
