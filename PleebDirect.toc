@@ -1,0 +1,10 @@
+## Interface: 120100
+## Title: PleebDirect
+## Notes: Standalone Smart Misdirection targeting for Hunters.
+## Author: Pleeb
+## Version: 1.1
+## Category-enUS: PleebUI
+
+## SavedVariablesPerCharacter: PleebDirectDB
+
+PleebDirect.lua
