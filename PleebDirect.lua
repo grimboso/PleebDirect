@@ -93,6 +93,7 @@ local DirectSpell
 local DirectSpellKnown = false
 local SpellStateDirty = true
 local RefreshSmartMisdirectSelector
+local PleebUIPlugin
 
 _G.BINDING_HEADER_PLEEBDIRECT = "PleebDirect"
 _G["BINDING_NAME_CLICK PleebDirect_SmartMisdirect:LeftButton"] =
@@ -1052,6 +1053,11 @@ local function ToggleSmartMisdirectSelector()
     return
   end
 
+  if PleebUIPlugin then
+    PleebUIPlugin:OpenOptions("general")
+    return
+  end
+
   local frame = EnsureSmartMisdirectSelector()
   if frame:IsShown() then
     frame:Hide()
@@ -1080,7 +1086,13 @@ local function EnsureSmartMisdirectStatusFrame()
   SmartMisdirectStatusFrame = frame
 
   frame:SetSize(520, 44)
-  frame:SetPoint("CENTER", UIParent, "CENTER", 0, 140)
+  frame:SetPoint(
+    "CENTER",
+    UIParent,
+    "CENTER",
+    _G.PleebDirectDB.statusX,
+    _G.PleebDirectDB.statusY
+  )
   frame:SetFrameStrata("HIGH")
   frame:SetFrameLevel(100)
   frame:EnableMouse(false)
@@ -1104,6 +1116,89 @@ local function EnsureSmartMisdirectStatusFrame()
   SmartMisdirectStatusName:SetFont(STANDARD_TEXT_FONT, 24, "OUTLINE")
 
   return frame
+end
+
+local function MountPleebUIOptions(host)
+  local frame = EnsureSmartMisdirectSelector()
+
+  RefreshSmartMisdirectSelector()
+  frame:SetParent(host)
+  frame:SetFrameStrata(host:GetFrameStrata())
+  frame:SetFrameLevel(host:GetFrameLevel() + 1)
+  frame:SetToplevel(false)
+  frame:SetClampedToScreen(false)
+  frame:SetMovable(false)
+  frame:ClearAllPoints()
+  frame:SetAllPoints(host)
+  frame.header:EnableMouse(false)
+  frame.close:Hide()
+  frame:Show()
+
+  return frame
+end
+
+local function SavePleebUIStatusPosition(mover)
+  local x, y = mover:GetCenter()
+  local parentX, parentY = UIParent:GetCenter()
+
+  if not x or not y or not parentX or not parentY then
+    return
+  end
+
+  _G.PleebDirectDB.statusX = x - parentX
+  _G.PleebDirectDB.statusY = y - parentY
+
+  local frame = EnsureSmartMisdirectStatusFrame()
+  frame:ClearAllPoints()
+  frame:SetPoint(
+    "CENTER",
+    UIParent,
+    "CENTER",
+    _G.PleebDirectDB.statusX,
+    _G.PleebDirectDB.statusY
+  )
+end
+
+local function RegisterPleebUIPlugin()
+  local API = _G.PleebUIAPI
+  if not API then
+    return
+  end
+
+  PleebUIPlugin = API:RegisterPlugin("PleebDirect", {
+    name = "PleebDirect",
+    order = 60,
+    navDescription = "Smart Misdirection and Tricks targeting.",
+    navGlyph = "MD",
+  })
+
+  PleebUIPlugin:RegisterOptionsPage("general", {
+    name = "General",
+    order = 10,
+    buildPage = MountPleebUIOptions,
+    customPageOwnsHeader = true,
+  })
+
+  PleebUIPlugin:RegisterGhostMover("ready-check-status", {
+    frameName = "PleebDirect_ReadyCheckStatusMover",
+    label = "PleebDirect ready-check status",
+    optionsPage = "general",
+    liveFrame = EnsureSmartMisdirectStatusFrame,
+    getSize = function()
+      return 520, 44
+    end,
+    show = true,
+    savePosition = SavePleebUIStatusPosition,
+    resetPosition = function(mover)
+      _G.PleebDirectDB.statusX = 0
+      _G.PleebDirectDB.statusY = 140
+      mover:ClearAllPoints()
+      mover:SetPoint("CENTER", UIParent, "CENTER", 0, 140)
+      local frame = EnsureSmartMisdirectStatusFrame()
+      frame:ClearAllPoints()
+      frame:SetPoint("CENTER", UIParent, "CENTER", 0, 140)
+    end,
+  })
 end
 
 local function HideSmartMisdirectReadyCheckStatus()
@@ -1255,6 +1350,8 @@ eventFrame:SetScript("OnEvent", function(self, event, unit)
   if event == "PLAYER_LOGIN" then
     self:UnregisterEvent("PLAYER_LOGIN")
     _G.PleebDirectDB = _G.PleebDirectDB or {}
+    _G.PleebDirectDB.statusX = tonumber(_G.PleebDirectDB.statusX) or 0
+    _G.PleebDirectDB.statusY = tonumber(_G.PleebDirectDB.statusY) or 140
 
     if not GetDirectSpell() then
       return
@@ -1263,6 +1360,7 @@ eventFrame:SetScript("OnEvent", function(self, event, unit)
     RegisterDirectEvents(self)
     RefreshKnownSpell()
     RefreshSmartMisdirection()
+    RegisterPleebUIPlugin()
     return
   end
 
