@@ -61,13 +61,15 @@ local PANEL_BACKDROP = {
 }
 
 local COLORS = {
-  accent = { 0.18, 0.55, 0.90, 1 },
+  accent = { 0.20, 0.72, 0.92, 1 },
   active = { 0.20, 1, 0.20, 1 },
-  background = { 0.035, 0.035, 0.045, 0.96 },
-  border = { 0.18, 0.18, 0.22, 1 },
-  control = { 0.075, 0.075, 0.095, 0.92 },
-  selected = { 0.18, 0.55, 0.90, 0.24 },
-  text = { 0.92, 0.92, 0.94, 1 },
+  background = { 0.035, 0.043, 0.055, 0.98 },
+  panel = { 0.075, 0.088, 0.108, 1 },
+  border = { 0.15, 0.18, 0.22, 1 },
+  control = { 0.055, 0.064, 0.080, 1 },
+  selected = { 0.20, 0.72, 0.92, 0.20 },
+  text = { 0.94, 0.96, 0.98, 1 },
+  muted = { 0.60, 0.66, 0.72, 1 },
 }
 
 local SOURCE_LABELS = {
@@ -417,6 +419,30 @@ local function SetBackdrop(frame, background, border)
   )
 end
 
+local function CreateLabel(parent, text, size)
+  local label = parent:CreateFontString(nil, "OVERLAY")
+  label:SetFont(STANDARD_TEXT_FONT, size or 12, "")
+  label:SetText(text or "")
+  label:SetTextColor(COLORS.text[1], COLORS.text[2], COLORS.text[3], COLORS.text[4])
+  label:SetJustifyH("LEFT")
+  return label
+end
+
+local function CreateButton(parent, text, width, height)
+  local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
+  button:SetSize(width or 120, height or 24)
+  SetBackdrop(button, COLORS.panel, COLORS.border)
+  button.label = CreateLabel(button, text, 12)
+  button.label:SetPoint("CENTER")
+  button:SetScript("OnEnter", function(self)
+    self:SetBackdropBorderColor(COLORS.accent[1], COLORS.accent[2], COLORS.accent[3], 1)
+  end)
+  button:SetScript("OnLeave", function(self)
+    self:SetBackdropBorderColor(COLORS.border[1], COLORS.border[2], COLORS.border[3], 1)
+  end)
+  return button
+end
+
 local function SetSmartMisdirectTextColor(fontString, class, fallback)
   local color = class and RAID_CLASS_COLORS[class]
   if color then
@@ -695,7 +721,7 @@ local function EnsureSmartMisdirectSelector()
 
   SmartMisdirectSelector = frame
 
-  frame:SetSize(370, 450)
+  frame:SetSize(370, 500)
   frame:SetPoint("CENTER")
   frame:SetFrameStrata("DIALOG")
   frame:SetToplevel(true)
@@ -706,13 +732,14 @@ local function EnsureSmartMisdirectSelector()
 
   SetBackdrop(frame, COLORS.background, COLORS.border)
 
-  local header = CreateFrame("Frame", nil, frame)
+  local header = CreateFrame("Frame", nil, frame, "BackdropTemplate")
   frame.header = header
   header:SetPoint("TOPLEFT", frame, "TOPLEFT", 2, -2)
   header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -2, -2)
-  header:SetHeight(32)
+  header:SetHeight(70)
   header:EnableMouse(true)
   header:RegisterForDrag("LeftButton")
+  SetBackdrop(header, COLORS.panel, COLORS.border)
   header:SetScript("OnDragStart", function()
     if not InCombatLockdown() then
       frame:StartMoving()
@@ -722,16 +749,23 @@ local function EnsureSmartMisdirectSelector()
     frame:StopMovingOrSizing()
   end)
 
-  frame.title = header:CreateFontString(
-    nil,
-    "OVERLAY",
-    "GameFontHighlightLarge"
-  )
-  frame.title:SetPoint("LEFT", header, "LEFT", 10, 0)
-  frame.title:SetText("Smart " .. DirectSpell.name)
+  local icon = header:CreateTexture(nil, "ARTWORK")
+  icon:SetSize(46, 46)
+  icon:SetPoint("LEFT", header, "LEFT", 14, 0)
+  icon:SetTexture(C_Spell.GetSpellTexture(DirectSpell.id))
+  icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
-  frame.close = CreateFrame("Button", nil, header, "UIPanelCloseButton")
-  frame.close:SetPoint("RIGHT", header, "RIGHT", -2, 0)
+  frame.title = CreateLabel(header, "Smart " .. DirectSpell.name, 20)
+  frame.title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 12, -2)
+  frame.title:SetFont(STANDARD_TEXT_FONT, 20, "OUTLINE")
+  frame.title:SetTextColor(COLORS.accent[1], COLORS.accent[2], COLORS.accent[3], 1)
+
+  local description = CreateLabel(header, "Choose and bind a safe target selector.", 11)
+  description:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -7)
+  description:SetTextColor(COLORS.muted[1], COLORS.muted[2], COLORS.muted[3], COLORS.muted[4])
+
+  frame.close = CreateButton(header, "×", 30, 30)
+  frame.close:SetPoint("TOPRIGHT", header, "TOPRIGHT", -10, -10)
   frame.close:SetScript("OnClick", function()
     frame:Hide()
   end)
@@ -741,7 +775,7 @@ local function EnsureSmartMisdirectSelector()
     "OVERLAY",
     "GameFontHighlight"
   )
-  frame.preferenceLabel:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -46)
+  frame.preferenceLabel:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -84)
   frame.preferenceLabel:SetText("Pleeb target:")
 
   frame.preferenceName = frame:CreateFontString(
@@ -797,7 +831,7 @@ local function EnsureSmartMisdirectSelector()
     "OVERLAY",
     "GameFontHighlight"
   )
-  frame.bindingLabel:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -108)
+  frame.bindingLabel:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -146)
   frame.bindingLabel:SetText("Keybind:")
 
   frame.bindingButton = CreateFrame(
@@ -806,8 +840,8 @@ local function EnsureSmartMisdirectSelector()
     frame,
     "BackdropTemplate"
   )
-  frame.bindingButton:SetPoint("TOPLEFT", frame, "TOPLEFT", 82, -101)
-  frame.bindingButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -14, -101)
+  frame.bindingButton:SetPoint("TOPLEFT", frame, "TOPLEFT", 82, -139)
+  frame.bindingButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -14, -139)
   frame.bindingButton:SetHeight(26)
   frame.bindingButton:RegisterForClicks("AnyUp")
   frame.bindingButton:EnableKeyboard(false)
@@ -875,14 +909,28 @@ local function EnsureSmartMisdirectSelector()
 
   RefreshSmartMisdirectBindingControl(frame)
 
+  local footer = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+  footer:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 1, 1)
+  footer:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+  footer:SetHeight(28)
+  SetBackdrop(footer, COLORS.panel, COLORS.border)
+
+  local footerText = CreateLabel(footer, "PleebUI  ·  /pd", 11)
+  footerText:SetPoint("LEFT", footer, "LEFT", 12, 0)
+  footerText:SetTextColor(COLORS.muted[1], COLORS.muted[2], COLORS.muted[3], COLORS.muted[4])
+
+  local footerState = CreateLabel(footer, "Selection changes outside combat", 11)
+  footerState:SetPoint("RIGHT", footer, "RIGHT", -12, 0)
+  footerState:SetTextColor(COLORS.muted[1], COLORS.muted[2], COLORS.muted[3], COLORS.muted[4])
+
   frame.scroll = CreateFrame(
     "ScrollFrame",
     nil,
     frame,
     "UIPanelScrollFrameTemplate"
   )
-  frame.scroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -150)
-  frame.scroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -32, 14)
+  frame.scroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -188)
+  frame.scroll:SetPoint("BOTTOMRIGHT", footer, "TOPRIGHT", -32, -14)
 
   frame.content = CreateFrame("Frame", nil, frame.scroll)
   frame.content:SetSize(318, 1)
@@ -1224,4 +1272,5 @@ end)
 _G.SLASH_PLEEBDIRECT1 = "/pd"
 _G.SLASH_PLEEBDIRECT2 = "/pleebdirect"
 _G.SLASH_PLEEBDIRECT3 = "/md"
+_G.SLASH_PLEEBDIRECT4 = "/tricks"
 _G.SlashCmdList.PLEEBDIRECT = ToggleSmartMisdirectSelector
