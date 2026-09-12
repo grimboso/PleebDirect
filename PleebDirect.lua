@@ -57,19 +57,19 @@ local DIRECT_SPELLS = {
 local PANEL_BACKDROP = {
   bgFile = "Interface\\Buttons\\WHITE8X8",
   edgeFile = "Interface\\Buttons\\WHITE8X8",
-  edgeSize = 1,
+  edgeSize = 3,
 }
 
 local COLORS = {
-  accent = { 0.20, 0.72, 0.92, 1 },
+  accent = { 0.20, 0.65, 1.00, 1 },
   active = { 0.20, 1, 0.20, 1 },
-  background = { 0.035, 0.043, 0.055, 0.98 },
-  panel = { 0.075, 0.088, 0.108, 1 },
-  border = { 0.15, 0.18, 0.22, 1 },
-  control = { 0.055, 0.064, 0.080, 1 },
-  selected = { 0.20, 0.72, 0.92, 0.20 },
-  text = { 0.94, 0.96, 0.98, 1 },
-  muted = { 0.60, 0.66, 0.72, 1 },
+  background = { 0.12, 0.12, 0.16, 0.92 },
+  panel = { 0.070, 0.070, 0.090, 0.96 },
+  border = { 0.20, 0.20, 0.24, 1 },
+  control = { 0.070, 0.070, 0.090, 0.96 },
+  selected = { 0.20, 0.65, 1.00, 0.20 },
+  text = { 0.96, 0.96, 0.96, 1 },
+  muted = { 0.96, 0.96, 0.96, 0.72 },
 }
 
 local SOURCE_LABELS = {
@@ -1048,18 +1048,33 @@ local function RefreshSmartMisdirectSelectorIfShown()
   end
 end
 
+local function RestoreStandaloneSelector(frame)
+  if frame.embedded ~= true then
+    return false
+  end
+
+  frame.embedded = nil
+  frame:SetParent(UIParent)
+  frame:SetFrameStrata("DIALOG")
+  frame:SetToplevel(true)
+  frame:SetClampedToScreen(true)
+  frame:SetMovable(true)
+  frame:ClearAllPoints()
+  frame:SetSize(370, 500)
+  frame:SetPoint("CENTER")
+  frame.header:EnableMouse(true)
+  frame.close:Show()
+  return true
+end
+
 local function ToggleSmartMisdirectSelector()
   if not GetDirectSpell() or InCombatLockdown() then
     return
   end
 
-  if PleebUIPlugin then
-    PleebUIPlugin:OpenOptions("general")
-    return
-  end
-
   local frame = EnsureSmartMisdirectSelector()
-  if frame:IsShown() then
+  local restored = RestoreStandaloneSelector(frame)
+  if frame:IsShown() and not restored then
     frame:Hide()
     return
   end
@@ -1122,6 +1137,7 @@ local function MountPleebUIOptions(host)
   local frame = EnsureSmartMisdirectSelector()
 
   RefreshSmartMisdirectSelector()
+  frame.embedded = true
   frame:SetParent(host)
   frame:SetFrameStrata(host:GetFrameStrata())
   frame:SetFrameLevel(host:GetFrameLevel() + 1)
