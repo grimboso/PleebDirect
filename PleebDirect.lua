@@ -432,7 +432,7 @@ end
 local function CreateButton(parent, text, width, height)
   local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
   button:SetSize(width or 120, height or 24)
-  SetBackdrop(button, COLORS.panel, COLORS.border)
+  SetBackdrop(button, COLORS.control, COLORS.border)
   button.label = CreateLabel(button, text, 12)
   button.label:SetPoint("CENTER")
   button:SetScript("OnEnter", function(self)
