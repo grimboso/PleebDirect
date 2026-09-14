@@ -75,6 +75,7 @@ local COLORS = {
 local SOURCE_LABELS = {
   PLEEB = "Priority target",
   RAID_MAINTANK = "Raid Main Tank",
+  RAID_TANK = "Raid Tank",
   PARTY_TANK = "Party Tank",
   PET = "Pet",
 }
@@ -110,6 +111,11 @@ end
 
 local function IsAccessibleTrue(value)
   return canaccessvalue(value) and value == true
+end
+
+local function IsAccessibleTankRole(unit)
+  local role = UnitGroupRolesAssigned(unit)
+  return canaccessvalue(role) and role == "TANK"
 end
 
 local function RefreshKnownSpell()
@@ -213,13 +219,21 @@ local function ResolveSmartMisdirectUnit()
         return unit, "RAID_MAINTANK"
       end
     end
+
+    for index = 1, GetNumGroupMembers() do
+      local unit = "raid" .. index
+
+      if IsAccessibleTankRole(unit)
+        and IsAvailableSmartMisdirectUnit(unit)
+      then
+        return unit, "RAID_TANK"
+      end
+    end
   else
     for index = 1, GetNumSubgroupMembers() do
       local unit = "party" .. index
-      local role = UnitGroupRolesAssigned(unit)
 
-      if canaccessvalue(role)
-        and role == "TANK"
+      if IsAccessibleTankRole(unit)
         and IsAvailableSmartMisdirectUnit(unit)
       then
         return unit, "PARTY_TANK"
@@ -380,6 +394,7 @@ local function GetSmartMisdirectSelectorUnits()
             guid = guid,
             name = name,
             class = class,
+            isTank = IsAccessibleTankRole(unit),
           })
         end
       end
@@ -395,6 +410,7 @@ local function GetSmartMisdirectSelectorUnits()
             guid = guid,
             name = name,
             class = class,
+            isTank = IsAccessibleTankRole(unit),
           })
         end
       end
@@ -677,8 +693,14 @@ local function EnsureSmartMisdirectSelectorRow(frame, index)
   row.marker:SetPoint("LEFT", row, "LEFT", 8, 0)
   row.marker:SetJustifyH("LEFT")
 
+  row.roleIcon = row:CreateTexture(nil, "ARTWORK")
+  row.roleIcon:SetSize(16, 16)
+  row.roleIcon:SetPoint("LEFT", row.marker, "RIGHT", 6, 0)
+  row.roleIcon:SetAtlas("groupfinder-icon-role-micro-tank")
+  row.roleIcon:Hide()
+
   row.text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  row.text:SetPoint("LEFT", row.marker, "RIGHT", 6, 0)
+  row.text:SetPoint("LEFT", row.roleIcon, "RIGHT", 6, 0)
   row.text:SetPoint("RIGHT", row, "RIGHT", -8, 0)
   row.text:SetJustifyH("LEFT")
   row.text:SetWordWrap(false)
@@ -1013,6 +1035,7 @@ RefreshSmartMisdirectSelector = function()
       row.targetClass = nil
       row.text:SetText("Automatic")
       SetSmartMisdirectTextColor(row.text, nil, COLORS.text)
+      row.roleIcon:Hide()
       selected = selectedGUID == nil
     else
       local data = units[index - 1]
@@ -1021,6 +1044,7 @@ RefreshSmartMisdirectSelector = function()
       row.targetClass = data.class
       row.text:SetText(data.name)
       SetSmartMisdirectTextColor(row.text, data.class, COLORS.text)
+      row.roleIcon:SetShown(data.isTank)
       selected = selectedGUID ~= nil and data.guid == selectedGUID
     end
 
