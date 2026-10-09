@@ -1222,6 +1222,7 @@ local function RegisterPleebUIPlugin()
   PleebUIPlugin:RegisterGhostMover("ready-check-status", {
     frameName = "PleebDirect_ReadyCheckStatusMover",
     label = "PleebDirect ready-check status",
+    isAvailable = function() return GetDirectSpell() ~= nil end,
     optionsPage = "general",
     liveFrame = EnsureSmartMisdirectStatusFrame,
     getSize = function()
